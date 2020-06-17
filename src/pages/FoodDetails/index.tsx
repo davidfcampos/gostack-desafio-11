@@ -73,48 +73,83 @@ const FoodDetails: React.FC = () => {
 
   useEffect(() => {
     async function loadFood(): Promise<void> {
-      // Load a specific food with extras based on routeParams id
+      api.get<Food>(`/foods/${routeParams.id}`).then(response => {
+        setFood(response.data);
+        setExtras(
+          response.data.extras.map((extra: Extra) => ({
+            ...extra,
+            quantity: 0,
+          })),
+        );
+      });
     }
 
     loadFood();
   }, [routeParams]);
 
   function handleIncrementExtra(id: number): void {
-    // Increment extra quantity
+    const increment = extras.map(extra =>
+      extra.id === id ? { ...extra, quantity: extra.quantity + 1 } : extra,
+    );
+
+    setExtras(increment);
   }
 
   function handleDecrementExtra(id: number): void {
-    // Decrement extra quantity
+    const decrement = extras.map(extra =>
+      extra.id === id && extra.quantity > 0
+        ? { ...extra, quantity: extra.quantity - 1 }
+        : extra,
+    );
+
+    setExtras(decrement);
   }
 
   function handleIncrementFood(): void {
-    // Increment food quantity
+    const qtd = foodQuantity + 1;
+    setFoodQuantity(qtd);
   }
 
   function handleDecrementFood(): void {
-    // Decrement food quantity
+    const qtd = foodQuantity > 1 ? foodQuantity - 1 : foodQuantity;
+    setFoodQuantity(qtd);
   }
 
   const toggleFavorite = useCallback(() => {
-    // Toggle if food is favorite or not
+    if (isFavorite) {
+      api.delete(`/favorites/${food.id}`);
+
+      setIsFavorite(false);
+    } else {
+      api.post('/favorites', food);
+
+      setIsFavorite(true);
+    }
   }, [isFavorite, food]);
 
   const cartTotal = useMemo(() => {
-    // Calculate cartTotal
+    const extrasTotal = extras.reduce(
+      (total, extra) => total + extra.value * extra.quantity,
+      0,
+    );
+
+    return formatValue(food.price * foodQuantity + extrasTotal);
   }, [extras, food, foodQuantity]);
 
   async function handleFinishOrder(): Promise<void> {
-    // Finish the order and save on the API
+    const { id, ...foodData } = food;
+
+    await api.post('orders', { ...foodData, extras, product_id: id });
+
+    navigation.goBack();
   }
 
-  // Calculate the correct icon name
   const favoriteIconName = useMemo(
     () => (isFavorite ? 'favorite' : 'favorite-border'),
     [isFavorite],
   );
 
   useLayoutEffect(() => {
-    // Add the favorite icon on the right of the header bar
     navigation.setOptions({
       headerRight: () => (
         <MaterialIcon
